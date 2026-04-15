@@ -1,0 +1,15 @@
+﻿expectation_id,name,status,n_failing_rows,detail
+1,Unicité trade_id,PASS,0,"8,750 valeurs uniques / 8,750 lignes"
+2,Colonnes obligatoires non nulles,FAIL,5306,8 colonnes vérifiées
+3,settlement_date >= trade_date,PASS,0,
+4,bid < ask,PASS,0,
+5,"price dans fourchette [bid*0.995, ask*1.005]",FAIL,120,
+6,mid_price cohérent avec (bid+ask)/2 ±1%,FAIL,119,
+7,"asset_class dans {equity, bond, derivative, fx}",PASS,0,"catégories présentes : ['bond', 'derivative', 'equity', 'fx']"
+8,rating IG incompatible avec default_flag=1,PASS,0,
+9,notional_eur > 0,PASS,0,min=2618.97
+10,"country_risk dans [0, 100]",PASS,0,
+11,ISIN conforme ISO 6166 (^[A-Z]{2}[A-Z0-9]{10}$),PASS,0,
+12,"volatility_30d dans [0.1, 200]",PASS,0,
+13,Complétude globale > 90%,PASS,0,complétude mesurée = 97.98%
+14,Absence de PII en clair,PASS,0,"colonnes hash présentes : ['counterparty_name_hash', 'trader_id_hash', 'counterparty_id_hash']"
