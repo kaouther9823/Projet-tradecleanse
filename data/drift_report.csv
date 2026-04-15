@@ -1,0 +1,4 @@
+﻿variable,ks_stat,p_value,drift,n_early,n_late
+price,0.0363,0.639386,NON,756,884
+volatility_30d,0.0321,0.780067,NON,756,884
+notional_eur,0.0602,0.098842,NON,756,884
