@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TradeCleanse — Validation Report</title>
+<style>
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#F7F6F3;margin:0;padding:2rem;color:#2C2C2A}
+  .card{background:#fff;border-radius:12px;border:0.5px solid #D3D1C7;padding:2rem;margin-bottom:1.5rem;max-width:1000px;margin-left:auto;margin-right:auto}
+  h1{font-size:22px;font-weight:500;margin:0 0 4px}
+  .meta{font-size:13px;color:#888780;margin-bottom:1.5rem}
+  .score-big{font-size:48px;font-weight:700;color:#E24B4A}
+  .score-sub{font-size:14px;color:#5F5E5A;margin-top:4px}
+  .dqs-bar{height:10px;background:#D3D1C7;border-radius:5px;overflow:hidden;margin:8px 0}
+  .dqs-fill{height:100%;background:#EF9F27;width:85.7%;border-radius:5px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{padding:10px 12px;text-align:left;background:#F1EFE8;font-weight:500;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#5F5E5A}
+  tr:nth-child(even){filter:brightness(0.97)}
+  .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600}
+  .pass{background:#E1F5EE;color:#085041}.fail{background:#FCEBEB;color:#791F1F}
+  footer{text-align:center;font-size:12px;color:#B4B2A9;margin-top:2rem}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>TradeCleanse — Rapport de Validation</h1>
+  <div class="meta">QuantAxis Capital · Généré le 2026-04-15 20:45:29 · Dataset : tradecleanse_clean.csv · 8,750 lignes</div>
+  <div style="display:flex;gap:3rem;align-items:flex-start;flex-wrap:wrap">
+    <div>
+      <div class="score-big">12/14</div>
+      <div class="score-sub">expectations passées</div>
+      <div class="dqs-bar"><div class="dqs-fill"></div></div>
+      <div style="font-size:12px;color:#888780">85.7% de réussite</div>
+    </div>
+    <div style="flex:1;min-width:200px">
+      <div style="font-size:13px;margin-bottom:8px;font-weight:500">Résumé</div>
+      <div style="font-size:13px;color:#5F5E5A;line-height:1.8">
+        <span class="badge pass">PASS</span> 12 expectations<br>
+        <span class="badge fail">FAIL</span> 2 expectations<br>
+        Complétude : 100.00%
+      </div>
+    </div>
+  </div>
+</div>
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th><th>Expectation</th><th style="text-align:center">Statut</th>
+        <th style="text-align:right">Lignes KO</th><th>Détail</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr style="background:#E1F5EE">
+      <td style="padding:8px 12px;font-weight:500;color:#2C2C2A">E01</td>
+      <td style="padding:8px 12px;color:#2C2C2A">Unicité de trade_id</td>
+      <td style="padding:8px 12px;text-align:center;font-weight:700;color:#1D9E75">✅ PASS</td>
+      <td style="padding:8px 12px;text-align:right;color:#5F5E5A">0</td>
+      <td style="padding:8px 12px;color:#5F5E5A;font-size:12px">8,750 valeurs uniques</td>
+    </tr>
+    <tr style="background:#E1F5EE">
+      <td style="padding:8px 12px;font-weight:500;color:#2C2C2A">E02</td>
+      <td style="padding:8px 12px;color:#2C2C2A">Colonnes obligatoires non nulles</td>
+      <td style="padding:8px 12px;text-align:center;font-weight:700;color:#1D9E75">✅ PASS</td>
+      <td style="padding:8px 12px;text-align:right;color:#5F5E5A">0</td>
+      <td style="padding:8px 12px;color:#5F5E5A;font-size:12px">['trade_id', 'isin', 'trade_date', 'asset_class', 'price', 'quantity', 'default_flag']</td>
+    </tr>
+    <tr style="background:#E1F5EE">
+      <td style="padding:8px 12px;font-weight:500;color:#2C2C2A">E03</td>
+      <td style="padding:8px 12px;color:#2C2C2A">settlement_date >= trade_date</td>
+      <td style="padding:8px 12px;text-align:center;font-weight:700;color:#1D9E75">✅ PASS</td>
+      <td style="padding:8px 12px;text-align:right;color:#5F5E5A">0</td>
+      <td style="padding:8px 12px;color:#5F5E5A;font-size:12px"></td>
+    </tr>
+    <tr style="background:#E1F5EE">
+      <td style="padding:8px 12px;font-weight:500;color:#2C2C2A">E04</td>
+      <td style="padding:8px 12px;color:#2C2C2A">bid < ask</td>
+      <td style="padding:8px 12px;text-align:center;font-weight:700;color:#1D9E75">✅ PASS</td>
+      <td style="padding:8px 12px;text-align:right;color:#5F5E5A">0</td>
+      <td style="padding:8px 12px;color:#5F5E5A;font-size:12px"></td>
+    </tr>
+    <tr style="background:#FCEBEB">
+      <td style="padding:8px 12px;font-weight:500;color:#2C2C2A">E05</td>
+      <td style="padding:8px 12px;color:#2C2C2A">price dans [bid*0.995, ask*1.005]</td>
+      <td style="padding:8px 12px;text-align:center;font-weight:700;color:#E24B4A">❌ FAIL</td>
+      <td style="padding:8px 12px;text-align:right;color:#5F5E5A">120</td>
+      <td style="padding:8px 12px;color:#5F5E5A;font-size:12px"></td>
+    </tr>
+    <tr style="background:#FCEBEB">
+      <td style="padding:8px 12px;font-weight:500;color:#2C2C2A">E06</td>
+      <td style="padding:8px 12px;color:#2C2C2A">mid_price cohérent avec (bid+ask)/2 ±1%</td>
+      <td style="padding:8px 12px;text-align:center;font-weight:700;color:#E24B4A">❌ FAIL</td>
+      <td style="padding:8px 12px;text-align:right;color:#5F5E5A">119</td>
+      <td style="padding:8px 12px;color:#5F5E5A;font-size:12px"></td>
+    </tr>
+    <tr style="background:#E1F5EE">
+      <td style="padding:8px 12px;font-weight:500;color:#2C2C2A">E07</td>
+      <td style="padding:8px 12px;color:#2C2C2A">asset_class dans {equity,bond,derivative,fx}</td>
+      <td style="padding:8px 12px;text-align:center;font-weight:700;color:#1D9E75">✅ PASS</td>
+      <td style="padding:8px 12px;text-align:right;color:#5F5E5A">0</td>
+      <td style="padding:8px 12px;color:#5F5E5A;font-size:12px">['bond', 'derivative', 'equity', 'fx']</td>
+    </tr>
+    <tr style="background:#E1F5EE">
+      <td style="padding:8px 12px;font-weight:500;color:#2C2C2A">E08</td>
+      <td style="padding:8px 12px;color:#2C2C2A">rating IG incompatible avec default_flag=1</td>
+      <td style="padding:8px 12px;text-align:center;font-weight:700;color:#1D9E75">✅ PASS</td>
+      <td style="padding:8px 12px;text-align:right;color:#5F5E5A">0</td>
+      <td style="padding:8px 12px;color:#5F5E5A;font-size:12px"></td>
+    </tr>
+    <tr style="background:#E1F5EE">
+      <td style="padding:8px 12px;font-weight:500;color:#2C2C2A">E09</td>
+      <td style="padding:8px 12px;color:#2C2C2A">notional_eur > 0</td>
+      <td style="padding:8px 12px;text-align:center;font-weight:700;color:#1D9E75">✅ PASS</td>
+      <td style="padding:8px 12px;text-align:right;color:#5F5E5A">0</td>
+      <td style="padding:8px 12px;color:#5F5E5A;font-size:12px">min=2618.97</td>
+    </tr>
+    <tr style="background:#E1F5EE">
+      <td style="padding:8px 12px;font-weight:500;color:#2C2C2A">E10</td>
+      <td style="padding:8px 12px;color:#2C2C2A">country_risk dans [0, 100]</td>
+      <td style="padding:8px 12px;text-align:center;font-weight:700;color:#1D9E75">✅ PASS</td>
+      <td style="padding:8px 12px;text-align:right;color:#5F5E5A">0</td>
+      <td style="padding:8px 12px;color:#5F5E5A;font-size:12px"></td>
+    </tr>
+    <tr style="background:#E1F5EE">
+      <td style="padding:8px 12px;font-weight:500;color:#2C2C2A">E11</td>
+      <td style="padding:8px 12px;color:#2C2C2A">ISIN conforme ISO 6166 (^[A-Z]{2}[A-Z0-9]{10}$)</td>
+      <td style="padding:8px 12px;text-align:center;font-weight:700;color:#1D9E75">✅ PASS</td>
+      <td style="padding:8px 12px;text-align:right;color:#5F5E5A">0</td>
+      <td style="padding:8px 12px;color:#5F5E5A;font-size:12px"></td>
+    </tr>
+    <tr style="background:#E1F5EE">
+      <td style="padding:8px 12px;font-weight:500;color:#2C2C2A">E12</td>
+      <td style="padding:8px 12px;color:#2C2C2A">volatility_30d dans [0.1, 200]</td>
+      <td style="padding:8px 12px;text-align:center;font-weight:700;color:#1D9E75">✅ PASS</td>
+      <td style="padding:8px 12px;text-align:right;color:#5F5E5A">0</td>
+      <td style="padding:8px 12px;color:#5F5E5A;font-size:12px"></td>
+    </tr>
+    <tr style="background:#E1F5EE">
+      <td style="padding:8px 12px;font-weight:500;color:#2C2C2A">E13</td>
+      <td style="padding:8px 12px;color:#2C2C2A">Complétude globale > 90%</td>
+      <td style="padding:8px 12px;text-align:center;font-weight:700;color:#1D9E75">✅ PASS</td>
+      <td style="padding:8px 12px;text-align:right;color:#5F5E5A">0</td>
+      <td style="padding:8px 12px;color:#5F5E5A;font-size:12px">100.00%</td>
+    </tr>
+    <tr style="background:#E1F5EE">
+      <td style="padding:8px 12px;font-weight:500;color:#2C2C2A">E14</td>
+      <td style="padding:8px 12px;color:#2C2C2A">Absence de colonnes PII en clair</td>
+      <td style="padding:8px 12px;text-align:center;font-weight:700;color:#1D9E75">✅ PASS</td>
+      <td style="padding:8px 12px;text-align:right;color:#5F5E5A">0</td>
+      <td style="padding:8px 12px;color:#5F5E5A;font-size:12px">toutes pseudonymisées ✓</td>
+    </tr></tbody>
+  </table>
+</div>
+<footer>TradeCleanse Pipeline · DCLE821 · QuantAxis Capital Paris · Conforme BCBS 239</footer>
+</body>
+</html>
