@@ -24,12 +24,40 @@
 import pandas as pd
 import numpy as np
 import warnings
+import logging
 warnings.filterwarnings('ignore')
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s | %(levelname)s | %(message)s',
+    handlers=[
+        logging.FileHandler('tradecleanse_pipeline.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # Chargement du dataset nettoye
 # ATTENTION : ce fichier doit avoir ete genere par 02_cleaning_pipeline.py
 df = pd.read_csv('data/tradecleanse_clean.csv', low_memory=False)
-print(f"Dataset nettoye charge : {df.shape[0]} lignes x {df.shape[1]} colonnes\n")
+logger.info(f"Dataset nettoye charge : {df.shape[0]} lignes x {df.shape[1]} colonnes")
+
+
+# ── Vérification PII préalable (garde-fou) ───────────────────────────────
+PII_RAW = ["counterparty_name", "trader_id", "counterparty_id"]
+pii_in_file = [c for c in PII_RAW if c in df.columns]
+
+if pii_in_file:
+    logger.error(f"🚨 ALERTE : colonnes PII non pseudonymisées dans le fichier : {pii_in_file}")
+    logger.error("   Relancez le pipeline de nettoyage (étape 0 + étape 9) avant validation.")
+    raise ValueError(f"PII détectées dans tradecleanse_clean.csv : {pii_in_file}")
+else:
+    logger.info("✓ Aucune colonne PII en clair dans le dataset nettoyé")
+
+# ── Vérifier que les colonnes _hash sont bien présentes ──────────────────
+hash_cols = [f"{c}_hash" for c in PII_RAW if f"{c}_hash" in df.columns]
+logger.info(f"✓ Colonnes pseudonymisées présentes : {hash_cols}")
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 results: list[dict] = []
 
@@ -48,7 +76,7 @@ def expect(
         msg += f"  →  {n_fail:,} ligne(s) en erreur"
     if detail:
         msg += f"  ({detail})"
-    print(msg)
+    logger.info(msg)
     results.append({
         "expectation_id"  : test_id,
         "name"            : name,
@@ -57,9 +85,9 @@ def expect(
         "detail"          : detail,
     })
 
-print("=" * 65)
-print("  VALIDATION — 14 EXPECTATIONS")
-print("=" * 65 + "\n")
+logger.info("=" * 65)
+logger.info("  VALIDATION — 14 EXPECTATIONS")
+logger.info("=" * 65 )
 
 # ── Pré-traitement des dates pour les tests temporels ─────────────────────────
 for col in ["trade_date", "settlement_date"]:
@@ -305,31 +333,31 @@ expect(14, "Absence de PII en clair",
 
 # --- Votre code ici ---
 
-print("\n" + "=" * 65)
+logger.info( "=" * 65)
 n_pass  = sum(1 for r in results if r["status"] == "PASS")
 n_total = len(results)
 score   = f"{n_pass}/{n_total}"
 
-print(f"  SCORE : {score} expectations passées")
+logger.info(f"  SCORE : {score} expectations passées")
 if n_pass == n_total:
-    print("  🏆 Pipeline validé — dataset prêt pour la modélisation")
+    logger.info("  🏆 Pipeline validé — dataset prêt pour la modélisation")
 elif n_pass >= n_total * 0.85:
-    print("  ⚠️  Qualité acceptable — investiguer les FAIL avant production")
+    logger.info("  ⚠️  Qualité acceptable — investiguer les FAIL avant production")
 else:
-    print("  🔴 Pipeline à corriger — trop d'expectations échouées")
-print("=" * 65)
+    logger.info("  🔴 Pipeline à corriger — trop d'expectations échouées")
+logger.info("=" * 65)
 
 # ── Détail des FAILs ─────────────────────────────────────────────────────────
 fails = [r for r in results if r["status"] == "FAIL"]
 if fails:
-    print("\n  DÉTAIL DES FAILS :")
+    logger.info("  DÉTAIL DES FAILS :")
     for r in fails:
-        print(f"  E{r['expectation_id']:02d} — {r['name']}")
-        print(f"       {r['n_failing_rows']:,} lignes  |  {r['detail']}")
+        logger.info(f"  E{r['expectation_id']:02d} — {r['name']}")
+        logger.info(f"       {r['n_failing_rows']:,} lignes  |  {r['detail']}")
 
 
 # ── Export CSV du rapport ────────────────────────────────────────────────────
 report_df = pd.DataFrame(results)
 report_df.to_csv("data/ge_validation_report.csv", index=False, encoding="utf-8-sig")
-print(f"\n  Rapport exporté → data/ge_validation_report.csv")
-print(f"  Shape finale dataset : {df.shape}")
+logger.info(f" Rapport exporté → data/ge_validation_report.csv")
+logger.info(f"  Shape finale dataset : {df.shape}")

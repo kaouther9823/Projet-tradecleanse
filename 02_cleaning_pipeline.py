@@ -15,7 +15,7 @@
 
 import logging
 import warnings
-
+import hashlib, os
 import numpy as np
 import pandas as pd
 
@@ -56,7 +56,19 @@ logger.info(f"Dataset charge : {df.shape[0]} lignes, {df.shape[1]} colonnes")
 
 before = len(df)
 # --- Votre code ici ---
+# ── ÉTAPE 0 — Pseudonymisation préventive ────────────────────────────────
 
+SALT   = os.environ.get("CLEANSE_SALT", "default_salt_dev")
+PII    = ["counterparty_name", "trader_id", "counterparty_id"]
+
+for col in PII:
+    if col in df.columns:
+        df[f"{col}_hash"] = df[col].astype("string").apply(
+            lambda v: hashlib.sha256(f"{SALT}|{v}".encode()).hexdigest() if pd.notna(v) else pd.NA
+        )
+        df.drop(columns=[col], inplace=True)
+logger.info(f"[Étape 0 — PII] Pseudonymisé avant toute analyse : {PII}")
+logger.info(f"[Étape 0 — PII] {before} -> {len(df)} lignes")
 #
 # CONTRAINTES OBLIGATOIRES :
 #   - Ne jamais modifier tradecleanse_raw.csv

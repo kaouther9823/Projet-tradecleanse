@@ -6,11 +6,40 @@
 # ============================================================
 
 import warnings
+import logging
 
 import pandas as pd
 
+import hashlib, os
 warnings.filterwarnings('ignore')
 
+class ColorFormatter(logging.Formatter):
+    COLORS = {
+        logging.INFO    : "\033[30m",   # noir
+        logging.WARNING : "\033[33m",   # orange
+        logging.ERROR   : "\033[31m",   # rouge
+        logging.CRITICAL: "\033[1;31m", # rouge gras
+    }
+    RESET = "\033[0m"
+
+    def format(self, record):
+        color = self.COLORS.get(record.levelno, self.RESET)
+        record.msg = f"{color}{record.msg}{self.RESET}"
+        return super().format(record)
+
+FMT = '%(asctime)s | %(levelname)s | %(message)s'
+
+sh = logging.StreamHandler()
+sh.setFormatter(ColorFormatter(FMT))
+
+fh = logging.FileHandler('tradecleanse_pipeline.log')
+fh.setFormatter(logging.Formatter(FMT))   # pas de couleurs dans le fichier
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.handlers.clear()   # évite les doublons si la cellule est relancée
+logger.addHandler(sh)
+logger.addHandler(fh)
 # ============================================================
 # CELLULE 1 — Chargement multi-sources
 # ============================================================
@@ -66,7 +95,13 @@ DTYPES = {
 PARSE_DATES = ["trade_date", "settlement_date"]
 
 # ── 2. Chargement du fichier consolidé ────────────────────────────────────────
-df_raw = pd.read_csv(
+
+SALT = os.environ.get("CLEANSE_SALT", "default_salt_dev")
+
+def pseudo(val, salt=SALT):
+    if pd.isna(val): return pd.NA
+    return hashlib.sha256(f"{salt}|{val}".encode()).hexdigest()[:12]  # 12 chars pour lisibilité
+df = pd.read_csv(
     "data/tradecleanse_raw.csv",
     sep             = ",",         # séparateur standard exports FR/Murex
     encoding        = "latin1", # gère le BOM éventuel des exports Windows
@@ -80,25 +115,37 @@ df_raw = pd.read_csv(
     low_memory      = False,       # évite les DtypeWarning sur colonnes mixtes
 )
 
+df_raw = df.copy()
+
+
+PII_COLS = ["counterparty_name", "trader_id", "counterparty_id"]
+
+# Appliquer sur df (PAS df_raw) dès le début du notebook 01
+for col in PII_COLS:
+    if col in df_raw.columns:
+        df_raw[f"{col}_hash"] = df_raw[col].astype("string").apply(pseudo)
+        df_raw.drop(columns=[col], inplace=True)
+        logger.info(f"[PII] {col} → {col}_hash avant profiling")
+
 df_raw.info()
 
 # Statistiques descriptives
 df_raw.describe(include="all")
 
-print(f"✓ Chargé : {df_raw.shape[0]:,} lignes × {df_raw.shape[1]} colonnes\n")
-print(df_raw.dtypes.to_string())
+logger.info(f"✓ Chargé : {df_raw.shape[0]:,} lignes × {df_raw.shape[1]} colonnes\n")
+logger.info("\n" + df_raw.dtypes.to_string())
 
 # ── 3. Simulation des 3 sous-dataframes par source ───────────────────────────
 
 COLS_MUREX = [
-    "trade_id", "counterparty_id", "trade_date", "settlement_date",
-    "asset_class", "notional_eur", "quantity", "trader_id",
+    "trader_id_hash", "counterparty_id_hash", "trade_date", "settlement_date",
+    "asset_class", "notional_eur", "quantity", "trade_id",
 ]
 COLS_BLOOMBERG = [
     "isin", "price", "bid", "ask", "mid_price", "volume_j", "volatility_30d",
 ]
 COLS_REFINITIV = [
-    "counterparty_name", "credit_rating", "default_flag", "sector", "country_risk",
+    "counterparty_name_hash", "credit_rating", "default_flag", "sector", "country_risk",
 ]
 
 # Sélection défensive : uniquement les colonnes effectivement présentes
@@ -106,7 +153,7 @@ def safe_select(df: pd.DataFrame, cols: list, source: str) -> pd.DataFrame:
     present = [col for col in cols if col in df.columns]
     missing = set(cols) - set(present)
     if missing:
-        print(f"   [{source}] colonnes absentes du fichier : {sorted(missing)}")
+        logger.info(f"   [{source}] colonnes absentes du fichier : {sorted(missing)}")
     sub = df[present].copy()
     sub["source"] = source   # ← colonne de traçabilité
     return sub
@@ -120,8 +167,8 @@ df_bloomberg.head()
 df_refinitiv.head()
 
 for name, sub in [("Murex", df_murex), ("Bloomberg", df_bloomberg), ("Refinitiv", df_refinitiv)]:
-    print(f"\n── {name} ({sub.shape[1]-1} cols + 'source') ──────────────────")
-    print(sub.head(2).to_string(index=False))
+    logger.info(f"── {name} ({sub.shape[1]-1} cols + 'source') ──────────────────")
+    logger.info(sub.head(2).to_string(index=False))
 
 # ── 4. Consolidation (union horizontale — même index ligne) ───────────────────
 #  Les 3 sources décrivent le même trade : on les réassemble côte à côte.
@@ -137,9 +184,9 @@ df_consolidated = pd.concat(
 )
 df_consolidated["source"] = "consolidated"
 
-print(f"\n✓ df_consolidated : {df_consolidated.shape[0]:,} lignes × {df_consolidated.shape[1]} colonnes")
-print(f"  Colonnes : {list(df_consolidated.columns)}")
-print(f"\n  NaN par colonne :\n{df_consolidated.isna().sum().to_string()}")
+logger.info(f"✓ df_consolidated : {df_consolidated.shape[0]:,} lignes × {df_consolidated.shape[1]} colonnes")
+logger.info(f"  Colonnes : {list(df_consolidated.columns)}")
+logger.info(f" \n +  NaN par colonne :{df_consolidated.isna().sum().to_string()}")
 
 # ============================================================
 # CELLULE 2 — Profiling initial
@@ -160,15 +207,15 @@ print(f"\n  NaN par colonne :\n{df_consolidated.isna().sum().to_string()}")
 
 # --- Votre code ici ---
 # shape & types
-print("═" * 60)
-print(f"SHAPE     : {df_consolidated.shape[0]:,} lignes × {df_consolidated.shape[1]} colonnes")
-print("─" * 60)
-print("TYPES PANDAS :")
-print(df_consolidated.dtypes.to_string())
+logger.info("═" * 60)
+logger.info(f"SHAPE     : {df_consolidated.shape[0]:,} lignes × {df_consolidated.shape[1]} colonnes")
+logger.info("─" * 60)
+logger.info("TYPES PANDAS :")
+logger.info("\n" + df_consolidated.dtypes.to_string())
 # valeurs manquantes
-print("\n" + "═" * 60)
-print("VALEURS MANQUANTES")
-print("─" * 60)
+logger.info("─" * 60)
+logger.info("VALEURS MANQUANTES")
+logger.info("─" * 60)
 
 n = len(df_consolidated)
 missing = (
@@ -182,12 +229,12 @@ missing = (
 missing["flag"] = missing["pct"].apply(
     lambda x: "🔴" if x > 20 else ("🟡" if x > 5 else "🟢")
 )
-print(missing.to_string())
-print(f"\n  Total cellules manquantes : {df_consolidated.isna().sum().sum():,} / {n * df_consolidated.shape[1]:,}")
+logger.info(missing.to_string())
+logger.info(f"  Total cellules manquantes : {df_consolidated.isna().sum().sum():,} / {n * df_consolidated.shape[1]:,}")
 # statistiques descriptives — colonnes numériques
-print("\n" + "═" * 60)
-print("STATISTIQUES DESCRIPTIVES (colonnes numériques)")
-print("─" * 60)
+logger.info("─" * 60)
+logger.info("STATISTIQUES DESCRIPTIVES (colonnes numériques)")
+logger.info("─" * 60)
 
 num_cols = df_consolidated.select_dtypes(include=["number"]).columns.tolist()
 
@@ -200,10 +247,10 @@ desc = (
         kurt = df_consolidated[num_cols].kurt().round(3),
     )
 )
-print(desc.to_string())
+logger.info(desc.to_string())
 # cardinalité & distributions — colonnes catégorielles
-print("\n" + "═" * 60)
-print("COLONNES CATÉGORIELLES")
+logger.info( "═" * 60)
+logger.info("COLONNES CATÉGORIELLES")
 
 cat_cols = df_consolidated.select_dtypes(include=["category", "object", "string"]).columns.tolist()
 
@@ -213,41 +260,41 @@ for col in cat_cols:
     n_missing = df_consolidated[col].isna().sum()
     pct_miss  = n_missing / n * 100
 
-    print(f"\n── {col}")
-    print(f"   Cardinalité : {n_unique} valeurs uniques  |  Manquants : {n_missing} ({pct_miss:.1f}%)")
+    logger.info(f"── {col}")
+    logger.info(f"   Cardinalité : {n_unique} valeurs uniques  |  Manquants : {n_missing} ({pct_miss:.1f}%)")
 
     # Pour les colonnes haute-cardinalité (IDs, noms), on n'affiche que le top-10
     MAX_DISPLAY = 15 if n_unique <= 15 else 10
     vc_pct = (vc / n * 100).round(2)
     summary = pd.DataFrame({"count": vc, "pct": vc_pct}).head(MAX_DISPLAY)
-    print(summary.to_string())
+    logger.info(summary.to_string())
     if n_unique > MAX_DISPLAY:
-        print(f"   … ({n_unique - MAX_DISPLAY} autres valeurs non affichées)")
+        logger.info(f"   … ({n_unique - MAX_DISPLAY} autres valeurs non affichées)")
 # doublons
-print("\n" + "═" * 60)
-print("DOUBLONS")
-print("─" * 60)
+logger.info( "═" * 60)
+logger.info("DOUBLONS")
+logger.info("─" * 60)
 
 # Doublons exacts (toutes colonnes sauf "source")
 dup_exact = df_consolidated.drop(columns="source").duplicated().sum()
-print(f"Doublons exacts (toutes colonnes)  : {dup_exact:,}  ({dup_exact/n*100:.2f}%)")
+logger.info(f"Doublons exacts (toutes colonnes)  : {dup_exact:,}  ({dup_exact/n*100:.2f}%)")
 
 # Doublons sur trade_id uniquement
 if "trade_id" in df_consolidated.columns:
     dup_tid = df_consolidated["trade_id"].duplicated(keep=False).sum()
     n_uid   = df_consolidated["trade_id"].nunique()
-    print(f"Doublons sur trade_id              : {dup_tid:,}  ({dup_tid/n*100:.2f}%)")
-    print(f"trade_id uniques                   : {n_uid:,} / {n:,}")
+    logger.info(f"Doublons sur trade_id              : {dup_tid:,}  ({dup_tid/n*100:.2f}%)")
+    logger.info(f"trade_id uniques                   : {n_uid:,} / {n:,}")
 
     # Affichage des trade_id qui apparaissent plus d'une fois
     dup_detail = (
         df_consolidated[df_consolidated["trade_id"].duplicated(keep=False)]
-        [["trade_id", "trade_date", "notional_eur", "trader_id"]]
+        [["trade_id", "trade_date", "notional_eur", "trader_id_hash"]]
         .sort_values("trade_id")
     )
     if not dup_detail.empty:
-        print(f"\n  Exemple de trade_id dupliqués :\n{dup_detail.head(10).to_string(index=False)}")
-    else:        print("  ✓ Aucun trade_id dupliqué.")
+        logger.info(f"  Exemple de trade_id dupliqués :{dup_detail.head(10).to_string(index=False)}")
+    else:        logger.info("  ✓ Aucun trade_id dupliqué.")
 
 # ============================================================
 # CELLULE 3 — Detection des anomalies
@@ -542,24 +589,24 @@ anomalies_report = (
 # ── Affichage du rapport ──────────────────────────────────────────────────────
 EMOJIS = {"CRITIQUE": "🔴", "HAUTE": "🟠", "MOYENNE": "🟡", "FAIBLE": "🟢"}
 
-print("═" * 80)
-print("RAPPORT D'ANOMALIES — df_consolidated")
-print("═" * 80)
+logger.info("═" * 80)
+logger.info("RAPPORT D'ANOMALIES — df_consolidated")
+logger.info("═" * 80)
 
 for _, row in anomalies_report.iterrows():
     icon = EMOJIS.get(row["criticite"], "⚪")
-    print(
+    logger.info(
         f"{icon} [{row['criticite']:<8}] {row['label']:<25} "
         f"{row['n_lignes']:>6} lignes ({row['pct']:>5.1f}%)  "
         f"col: {row['colonnes']}"
     )
-    print(f"   ↳ {row['description']}")
+    logger.info(f"   ↳ {row['description']}")
 
-print("\n" + "─" * 80)
+logger.info( "─" * 80)
 total_lignes_impactees = anomalies_report["n_lignes"].sum()
-print(f"  {len(anomalies_report)} règles testées")
-print(f"  {anomalies_report[anomalies_report['criticite']=='CRITIQUE']['n_lignes'].sum():,} lignes CRITIQUES")
-print(f"  {total_lignes_impactees:,} anomalies cumulées (doublons de lignes possibles)")
+logger.info(f"  {len(anomalies_report)} règles testées")
+logger.info(f"  {anomalies_report[anomalies_report['criticite']=='CRITIQUE']['n_lignes'].sum():,} lignes CRITIQUES")
+logger.info(f"  {total_lignes_impactees:,} anomalies cumulées (doublons de lignes possibles)")
 
 anomalies_report
 
@@ -745,7 +792,7 @@ for col in ["trade_date", "settlement_date"]:
             errors    = "coerce",
         )
         n_nat = df_consolidated[col].isna().sum()
-        print(f"  ✓ {col} re-casté → {df_consolidated[col].dtype}  ({n_nat} NaT)")
+        logger.info(f"  ✓ {col} re-casté → {df_consolidated[col].dtype}  ({n_nat} NaT)")
 
 mask_dates = df_consolidated["trade_date"].notna() & df_consolidated["settlement_date"].notna()
 
@@ -755,7 +802,7 @@ delay = (
     - pd.to_datetime(df_consolidated.loc[mask_dates, "trade_date"])
 ).dt.days
 
-print(f"✓ Délais calculés sur {mask_dates.sum():,} lignes — min={delay.min()}, max={delay.max()}")
+logger.info(f"✓ Délais calculés sur {mask_dates.sum():,} lignes — min={delay.min()}, max={delay.max()}")
 
 n_neg     = (delay < 0).sum()        # settlement AVANT trade → CRITIQUE
 n_zero    = (delay == 0).sum()       # même jour   → suspect
@@ -821,4 +868,4 @@ plt.savefig(
     facecolor   = "white",
 )
 plt.show()
-print(f"✓ Rapport sauvegardé → {OUTPUT_PATH}")
+logger.info(f"✓ Rapport sauvegardé → {OUTPUT_PATH}")
