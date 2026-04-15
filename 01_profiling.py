@@ -1,14 +1,14 @@
 # ============================================================
 # TRADECLEANSE — NOTEBOOK 01 : Audit & Profiling Initial
 # DCLE821 — QuantAxis Capital
-# Etudiant(s) : ___________________________________
-# Date        : ___________________________________
+# Etudiant(s) : Kaouther TRABELSI
+# Date        : 15/04/2026
 # ============================================================
 
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
 import warnings
+
+import pandas as pd
+
 warnings.filterwarnings('ignore')
 
 # ============================================================
@@ -652,7 +652,7 @@ for bar, val in zip(bars, miss_pct.values):
 ax1.axvline(5,  color=C["warn"],     lw=1, ls="--", alpha=0.7, label="seuil 5 %")
 ax1.axvline(20, color=C["critical"], lw=1, ls="--", alpha=0.7, label="seuil 20 %")
 ax1.set_xlabel("% valeurs manquantes")
-ax1.set_title("① Taux de valeurs manquantes par colonne", fontweight="bold", pad=8)
+ax1.set_title("Taux de valeurs manquantes par colonne", fontweight="bold", pad=8)
 ax1.legend(fontsize=8, framealpha=0.4)
 ax1.set_xlim(0, miss_pct.max() * 1.18)
 ax1.grid(axis="x")
@@ -696,7 +696,7 @@ legend_patches = [
     mpatches.Patch(color=C["critical"], label="hors référentiel"),
 ]
 ax2.legend(handles=legend_patches, fontsize=8, framealpha=0.4)
-ax2.set_title("② Distribution asset_class (toutes variantes)", fontweight="bold", pad=8)
+ax2.set_title("Distribution asset_class (toutes variantes)", fontweight="bold", pad=8)
 ax2.set_ylabel("Nombre de trades")
 ax2.grid(axis="x", alpha=0)
 # graphique 3 — scatter bid vs ask (inversions en évidence)
@@ -732,7 +732,7 @@ lims = [
 ax3.plot(lims, lims, color=C["warn"], lw=1.2, ls="--", alpha=0.8, label="bid = ask", zorder=3)
 ax3.set_xlabel("bid")
 ax3.set_ylabel("ask")
-ax3.set_title("③ Scatter bid vs ask — fourchettes inversées", fontweight="bold", pad=8)
+ax3.set_title("Scatter bid vs ask — fourchettes inversées", fontweight="bold", pad=8)
 ax3.legend(fontsize=8, framealpha=0.4)
 # graphique 4 — délai settlement − trade_date (histogramme)
 # Calcul du délai en jours calendaires
@@ -801,7 +801,7 @@ ax4.text(
 
 ax4.set_xlabel("Délai en jours (settlement_date − trade_date)")
 ax4.set_ylabel("Nombre de trades")
-ax4.set_title("④ Délai settlement − trade_date", fontweight="bold", pad=8)
+ax4.set_title("Délai settlement − trade_date", fontweight="bold", pad=8)
 ax4.set_xticks(range(-5, 16))
 ax4.legend(fontsize=8, framealpha=0.4)
 
